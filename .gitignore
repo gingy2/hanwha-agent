@@ -1,0 +1,13 @@
+sandbox/
+.venv/
+.venv-1/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.env
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
