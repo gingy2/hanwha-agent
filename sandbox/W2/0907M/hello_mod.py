@@ -1,0 +1,1 @@
+MESSAGE='I am inside sandbox/w2/0907m'
