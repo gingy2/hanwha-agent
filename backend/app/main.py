@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from h11 import Request
-from backend.app.api.v1.documents import router as documents_router
-from backend.app.core.config import Settings
-from backend.app.core.exceptions import AgentError
-from backend.app.core.logging import setup_logging
+from app.api.v1.documents import router as documents_router
+from app.core.config import Settings
+from app.core.exceptions import AgentError
+from app.core.logging import setup_logging
 
 # lifespan 함수 정의
 @asynccontextmanager
