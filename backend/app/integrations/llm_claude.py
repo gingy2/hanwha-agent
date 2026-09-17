@@ -35,7 +35,7 @@ def _context_block(contexts:list[dict])->str:
     lines=[]
     for i, c in enumerate(contexts, 1):
         lines.append(
-            f'[근거{i}]{c.get('title')}{c.get('version')} · {c.get('locator')} "
+            f"[근거{i}] {c.get('title')} {c.get('version')} · {c.get('locator')} "
             f"(유사도 {c.get('score', 0):.2f})\n{c.get('quote') or c.get('text') or ''}"
         )
     return "\n\n".join(lines) if lines else "(근거 문서 없음)"
@@ -113,3 +113,19 @@ class ClaudeLLM:
             cost_krw=estimate_cost_krw(total_in, usage['output']),
             latency_ms=ms
         )
+
+# 모델이 코드펜스로 감싸서 보낸 경우, 원활한 파싱을 위한 전처리 함수
+def _extract_json(text:str)->dict:
+    # 정규 표현식으로 원하는 부분만 추출
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    raw = fenced.group(1) if fenced else text
+
+    # 펜스가 없으면 앞뒤에 설명 문장이 붙어있을 수 있다. 첫 {와 마지막 } 사이만 남긴다.
+    start, end = raw.find("{"), raw.rfind("}")
+    if start == -1 or end == -1:
+        return {}
+    try:
+        return json.loads(raw[start : end + 1])
+    except json.JSONDecodeError:
+        log.warning("응답 JSON 파싱 실패")
+        return {}
