@@ -1,0 +1,76 @@
+html, body, [class*="css"] {
+  color: var(--ag-ink);
+}
+
+[data-testid="stAppViewContainer"] {
+  background: var(--ag-bg);
+}
+
+[data-testid="stSidebar"] {
+  background: var(--ag-sb);
+  color: var(--ag-sb-ink);
+}
+
+.ag-brand {
+  padding: var(--ag-s3) var(--ag-s2);
+}
+.ag-brand-name {
+  font-size: var(--ag-fs-lg);
+  font-weight: 700;
+  color: var(--ag-sb-ink);
+}
+.ag-brand-sub {
+  font-size: var(--ag-fs-xs);
+  color: var(--ag-muted);
+}
+
+.ag-user {
+  display: flex;
+  align-items: center;
+  gap: var(--ag-s2);
+  padding: var(--ag-s2);
+  margin: 0 0 var(--ag-s2) 0;
+  border-top: 1px solid var(--ag-line-2);
+  border-bottom: 1px solid var(--ag-line-2);
+}
+.ag-user-name {
+  font-size: var(--ag-fs-sm);
+  font-weight: 600;
+  color: var(--ag-sb-ink);
+}
+.ag-user-role {
+  font-size: var(--ag-fs-xs);
+  color: var(--ag-muted);
+}
+.ag-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ag-accent-soft);
+  color: var(--ag-accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--ag-fs-xs);
+  font-weight: 700;
+}
+
+.ag-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 var(--ag-s1) var(--ag-s1) 0;
+  border-radius: 999px;
+  border: 1px solid var(--ag-line-2);
+  font-size: var(--ag-fs-xs);
+  color: var(--ag-muted);
+}
+.ag-chip--on {
+  background: var(--ag-accent-soft);
+  border-color: var(--ag-accent);
+  color: var(--ag-accent-ink);
+}
+
+.ag-mode {
+  font-size: var(--ag-fs-xs);
+  color: var(--ag-muted);
+}

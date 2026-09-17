@@ -9,7 +9,7 @@ _FORMAT='%(asctime)s %(levelname)-8s %(name)s: %(message)s'
 _DATEFMT='%H:%M:%S'
 
 # 내 로그가 묻히지 않게 로그 줄여줄 라이브러리들
-_NOISY=('httpx','httpcore','urllib3','asyncio')
+_NOISY=('httpx','httpcore','httpx2','httpcore2','urllib3','asyncio')
 
 def setup_logging(level:int=logging.INFO,stream=None)->None:
 

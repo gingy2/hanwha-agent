@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from pytest import Session
-
 from app.core.exceptions import NotFound, ValidationFailed
 from app.db.session import session_scope    # session DB 접속 통로
 from app.models.document import Document, DocumentVersion   # 데이터 넣는 가방

@@ -7,6 +7,14 @@ class AgentError(Exception):
         self.message = message 
         self.detail = detail 
  
+# 로그인 실패, 누구인지 확인 X
+class AuthFailed(AgentError):
+    status_code = 401
+    code = "auth_failed"
+
+    def __init__(self, message: str = "사번 또는 비밀번호가 올바르지 않습니다.", *, detail: str | None = None):
+        super().__init__(message, detail=detail)
+
 # 요청한 자원이 없다
 class NotFound(AgentError):
     status_code=404

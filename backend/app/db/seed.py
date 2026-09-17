@@ -6,7 +6,8 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.seed_data import DEPARTMENTS, DOCUMENTS, USERS
+from app.core.security import hash_password
+from app.db.seed_data import DEPARTMENTS, DOCUMENTS, TEMP_PASSWORD, USERS
 from app.db.session import session_scope
 from app.models import Department, Document, DocumentVersion, User
 
@@ -37,7 +38,9 @@ def _seed(session: Session) -> dict[str, int]:
 
     # 실제로 적재된 게 없으면 add_all
     session.add_all(Department(**row) for row in DEPARTMENTS) # 부서
-    session.add_all(User(**row) for row in USERS) # 사용자
+
+    temp_hash = hash_password(TEMP_PASSWORD)
+    session.add_all(User(**row, password_hash=temp_hash) for row in USERS) # 사용자
     session.flush()
 
     # 문서 적재

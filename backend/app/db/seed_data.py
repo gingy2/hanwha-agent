@@ -1,6 +1,8 @@
 from __future__ import annotations
 from datetime import date
 
+TEMP_PASSWORD = "passwd1234!"
+
 DEPARTMENTS: list[dict] = [
     {"id": "HR", "name": "경영지원팀"},
     {"id": "HRGA", "name": "인사총무"},
