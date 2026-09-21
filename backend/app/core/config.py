@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     top_k:int=Field(default=3, ge=1, le=20)
     upstage_api_key:SecretStr|None=None
 
+    langfuse_enabled:bool=False
+    langfuse_host:str='http://localhost:3000'
+    langfuse_public_key:str|None=None
+    langfuse_secret_key:SecretStr|None=None
+
     # live 모드인지 확인 -> settings.is_live => True/Fase 
     @property
     def is_live(self) -> bool:

@@ -23,7 +23,7 @@ class StubLLM:
         self.replies = list(replies)
         self.calls = 0
 
-    def answer(self, *, question: str, contexts: list[dict], user: dict) -> LLMResult:
+    def answer(self, *, question: str, context: list[dict], user: dict) -> LLMResult:
         text = self.replies[min(self.calls, len(self.replies) - 1)]
         self.calls += 1
 

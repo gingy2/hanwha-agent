@@ -1,21 +1,51 @@
 services:
+  # 실행할 컨테이너(서비스) 목록
   postgres:
-    image: pgvector/pgvector:pg16
-    container_name: agent-postgres
+    # PostgreSQL 서비스 정의
+    image: pgvector/pgvector:pg16 # pgvector 확장이 포함된 PostgreSQL 16 이미지
+    container_name: agent-postgres # 컨테이너 이름 고정
     environment:
-      POSTGRES_USER: agent
-      POSTGRES_PASSWORD: agent
-      POSTGRES_DB: agent
-      TZ: Asia/Seoul
+      # 컨테이너 환경변수
+      POSTGRES_USER: agent # DB 접속 사용자명
+      POSTGRES_PASSWORD: agent # DB 접속 비밀번호 (로컬 개발용)
+      POSTGRES_DB: agent # 기본으로 생성할 DB 이름
+      TZ: Asia/Seoul # 컨테이너 타임존을 한국 시간으로 설정
     ports:
-      - "5432:5432"
+      # 포트 매핑 (호스트:컨테이너)
+      - "5432:5432" # 호스트 5432 포트를 Postgres 기본 포트로 연결
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # 데이터 영속화용 볼륨
+      - pgdata:/var/lib/postgresql/data # 아래 정의한 pgdata 볼륨에 DB 데이터 저장
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      # 컨테이너 상태 점검 설정
+      test: [ "CMD-SHELL", "pg_isready -U agent -d agent" ] # DB가 접속 가능한지 확인하는 명령
+      interval: 5s # 5초마다 점검
+      timeout: 3s # 점검 1회당 최대 3초 대기
+      retries: 20 # 20번 연속 실패하면 unhealthy 처리
+
+  # ── 관측 블럭 추가 ──────────────────────────────────────────────
+  langfuse:
+    # LLM 관측(트레이싱) 도구 Langfuse 서비스
+    image: langfuse/langfuse:2 # Langfuse v2 이미지
+    container_name: agent-langfuse # 컨테이너 이름 고정
+    profiles: [ "langfuse" ] # 프로파일 지정 시에만 실행 (--profile langfuse)
+    depends_on:
+      # 시작 순서 의존성
+      postgres:
+        # postgres 서비스에 의존
+        condition: service_healthy # postgres가 healthy 상태가 된 뒤에 시작
+    environment:
+      # 컨테이너 환경변수
+      DATABASE_URL: postgresql://agent:agent@postgres:5432/langfuse # Langfuse가 사용할 DB 접속 주소 (langfuse DB)
+      NEXTAUTH_URL: http://localhost:3000 # 인증 콜백에 사용되는 서비스 기본 URL
+      NEXTAUTH_SECRET: hanhwa-lecture-local-only # 세션 암호화용 시크릿 (로컬 전용 값)
+      SALT: hanhwa-lecture-local-only # API 키 해시용 salt (로컬 전용 값)
+      ENCRYPTION_KEY: 0 # 데이터 암호화 키 (로컬용 더미 값)
+      TELEMETRY_ENABLED: "false" # Langfuse 사용 통계 전송 비활성화
+    ports:
+      # 포트 매핑 (호스트:컨테이너)
+      - "3000:3000" # 브라우저에서 localhost:3000으로 Langfuse UI 접속
 
 volumes:
-  pgdata:
+  # named volume 정의
+  pgdata: # Postgres 데이터를 보관하는 볼륨

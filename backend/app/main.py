@@ -7,13 +7,16 @@ from fastapi.responses import JSONResponse
 from app.api.v1 import auth, documents, chat
 from app.core.exceptions import AgentError
 from app.core.logging import setup_logging
+from app.core.tracing import configure_langfuse, flush_langfuse
 
 
 # lifespan 함수 정의
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    configure_langfuse()
     yield
+    flush_langfuse()
 
 app = FastAPI(
     title='사내 AI 에이전트',
