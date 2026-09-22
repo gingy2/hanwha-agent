@@ -40,7 +40,7 @@ services:
       NEXTAUTH_URL: http://localhost:3000 # 인증 콜백에 사용되는 서비스 기본 URL
       NEXTAUTH_SECRET: hanhwa-lecture-local-only # 세션 암호화용 시크릿 (로컬 전용 값)
       SALT: hanhwa-lecture-local-only # API 키 해시용 salt (로컬 전용 값)
-      ENCRYPTION_KEY: 0 # 데이터 암호화 키 (로컬용 더미 값)
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000 # 데이터 암호화 키 (32바이트 hex, 로컬용 더미 값)
       TELEMETRY_ENABLED: "false" # Langfuse 사용 통계 전송 비활성화
     ports:
       # 포트 매핑 (호스트:컨테이너)
