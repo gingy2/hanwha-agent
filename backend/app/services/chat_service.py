@@ -7,6 +7,7 @@ import app.integrations.factory as factory
 from langfuse.decorators import langfuse_context, observe
 from pydantic import ValidationError
 
+from app.agent.chain import build_result_chain
 from app.core.config import get_settings
 from app.core.exceptions import NotFound
 from app.core.guards import check_question
@@ -110,6 +111,11 @@ def ask(*, question:str, run_id:str|None=None, user_id:int=1)->AskOut:
     # 2-1. 질문에 맞는 근거 청크 검색 (프롬프트에 주입할 재료)
     contexts=retrieve(q, user=DEFAULT_USER)
 
+    # 2-2. 체인 생성: prompt | LLMPort, 일시 오류는 1회 재시도
+    chain=build_result_chain(llm, contexts=contexts, user=DEFAULT_USER).with_retry(
+        stop_after_attempt=2
+    )
+
     out=None
     hint=''
     for attempt in range(1, MAX_ATTEMPTS+1):
@@ -117,7 +123,7 @@ def ask(*, question:str, run_id:str|None=None, user_id:int=1)->AskOut:
         # 프롬프트 준비
         prompt=q if not hint else f'{q}\n\n[직전 응답의 문제]{hint}\n출력 형식 지켜서 다시 답해주세요'
         # llm에 질문
-        result=llm.answer(question=prompt, context=contexts, user=DEFAULT_USER)
+        result=chain.invoke({'question': prompt})
 
         # 검증 전에 usage_log 기록하기
         _record_usage(run_id, result)

@@ -18,7 +18,7 @@ def test_check_question_rejects_too_long()->None:
 
 def test_check_question_rejects_unknown_model()->None:
         with pytest.raises(GuardTripped):
-            check_question('claude-opus-5')
+            check_model('claude-opus-5')
         assert check_model(get_settings().llm_model)==get_settings().llm_model
 
 def test_check_daily_limit_raises_when_exhausted()->None:

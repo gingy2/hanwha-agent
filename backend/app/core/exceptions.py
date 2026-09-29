@@ -18,7 +18,7 @@ class AuthFailed(AgentError):
 # 요청한 자원이 없다
 class NotFound(AgentError):
     status_code=404
-    code='not found'
+    code='not_found'
 
 # 자원은 있으나 이 사용자가 접근할 수 없다
 class PermissionDenied(AgentError):
@@ -54,5 +54,3 @@ class ModeNotAvailable(AgentError):
 class ExternalServiceError(AgentError):
     status_code=502
     code='external_service_error'
-
-e=NotFound('문서를 찾을 수 없습니다.', detail='doc_id에 id가 없음')
