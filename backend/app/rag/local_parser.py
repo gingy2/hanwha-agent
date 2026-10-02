@@ -9,7 +9,7 @@ from app.integrations.ports import ParsedBlock, ParsedDoc
 
 log = get_logger(__name__)
 
-TIMEOUT = 180.0  
+TIMEOUT = 180.0
 
 _HINTS = {
     401: "API 키가 잘못되었거나, 차단된 키 입니다."
@@ -21,83 +21,81 @@ _HINTS = {
     429: "요청이 너무 잦습니다. 잠시 후 다시 시도하세요."
 }
 
-# 글자로 받을 카테고리. 
+# 글자로 받을 카테고리.
 _TEXT = {"paragraph", "heading1", "heading2", "heading3",
          "list", "index", "caption", "equation", "code", "footnote"}
 
 _SKIP = {"header", "footer", "figure"}
 
-# 인증 헤더 만들기 
+# 인증 헤더 만들기
 def _headers() -> dict:
     key = get_settings().upstage_api_key
     if key is None:
         raise ExternalServiceError("UPSTAGE_API_KEY 가 비어있습니다.")
     return {"Authorization": f"Bearer {key.get_secret_value()}"}
 
-# 상태 코드 붙일 안내 문장 리턴 
+# 상태 코드 붙일 안내 문장 리턴
 def _explain(status: int | None) -> str:
     return _HINTS.get(status, "")
 
 # 상용 문서 파서 어댑터.
 class UpstageParser:
-    
+
     name = "upstage"
 
-    # 파일 하나 상용 파서에 보내 ParsedDoc 으로 리턴 
+    # 파일 하나 상용 파서에 보내 ParsedDoc 으로 리턴
     def parse(self, path: str) -> ParsedDoc:
         p = Path(path)
         if not p.exists():
             raise ExternalServiceError(f"파일을 찾을 수 없습니다: {path}")
         return _to_doc(p, _post(p))
 
-# 파일을 멀티파트로 보내고 응답을 JSON으로 반환
-def _post(p: Path) -> dict:
-    import httpx
 
-    settings=get_settings()
-    url=settings.upstage_base_url.rstrip('/') + '/document-digitization'
+# 파일을 멀티파트로 보내고 응답을 JSON으로 리턴
+def _post(p: Path) -> dict:
+    import httpx  # http 요청
+
+    settings = get_settings()
+    url = f"{settings.upstage_base_url.rstrip('/')}/document-digitization"
     try:
-        with httpx.Client(timeout=TIMEOUT) as client, p.open('rb') as fh:
-            response=client.post(
+        with httpx.Client(timeout=TIMEOUT) as client, p.open("rb") as fh:
+            response = client.post(
                 url,
                 headers=_headers(),
-                files={'document':(p.name,fh)},
+                files={"document": (p.name, fh)},
                 data={
-                    'model':settings.upstage_parse_model,
-                    'ocr':settings.upstage_parse_ocr,
-                    'output_formats':"['markdown']",
-                    'coordinates':'false',
+                    "model": settings.upstage_parse_model,
+                    "ocr": settings.upstage_parse_ocr,
+                    "output_formats": "['markdown']",
+                    "coordinates": "false",
                 }
             )
             response.raise_for_status()
 
-    except httpx.HTTPStatusError as e:
-        status=getattr(getattr(e,'response',None),'status_code',None)
-        raise ExternalServiceError(f'Upstage 문서 파싱 실패: {e}', detail=_explain(status)) from e
-    except httpx.RequestError as e:   # 네트워크 끊김, 타임아웃 등
-        raise ExternalServiceError(f'Upstage 연결 실패: {e}', detail='네트워크 또는 upstage_base_url 을 확인하세요') from e
+    except httpx.HTTPError as e:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        raise ExternalServiceError(f"Upstage 문서 파싱 실패: {e}", detail=_explain(status)) from e
 
     return response.json()
 
-# 응답의 elements를 ParsedDoc로 변환
-def _to_doc(p:Path, payload:dict)->ParsedDoc:
-    blocks:list[ParsedBlock]=[]
-    tables=0
-    pages=0
+# 응답의 elements를 ParsedBlock 리스트로 변경 -> ParsedDoc으로 리턴
+def _to_doc(p: Path, payload: dict) -> ParsedDoc:
+    blocks: list[ParsedBlock] = []
+    tables = 0
+    pages = 0
 
-    for el in payload.get('elements',[]):
-        category=el.get('category','')
-        page=int(el.get('page',0) or 0)
-        pages=max(pages, page)
-        text=(el.get('content') or {}).get('markdown','').strip()
-
+    for el in payload.get("elements", []):
+        category = el.get("category", "")
+        page = int(el.get("page", 0) or 0)
+        pages = max(pages, page)
+        text = (el.get("content") or {}).get("markdown", "").strip()
         if not text or category in _SKIP:
             continue
-        if category in ('table','chart'):
-            tables+=1
-            blocks.append(ParsedBlock('표',f'표{tables}-p.{page}',text))
+        if category in ("table", "chart"):
+            tables += 1
+            blocks.append(ParsedBlock("표", f"표{tables} · p.{page}", text))
         elif category in _TEXT:
-            blocks.append(ParsedBlock('조항',f'p.{page}',text))
+            blocks.append(ParsedBlock("조항", f"p.{page}", text))
 
     log.info("상용 파싱 완료: %s, 블록 %d, 표 %d", p.name, len(blocks), tables)
     return ParsedDoc(blocks=blocks, page_count=pages, table_count=tables)

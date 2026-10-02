@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from app.integrations.ports import ParsedBlock, ParsedDoc
 from app.rag.chunker import chunk, summarize
-from app.rag.local_parsers import parse_local
+from sandbox.W5.Fri.old_local_parsers import parse_local
 
 SAMPLES = Path(__file__).resolve().parents[2] / 'sandbox' / 'W5' / 'Mon' / 'samples'
 HWPX = SAMPLES / 'DOC-HR-014_국내출장_여비_규정_v2.0.hwpx'

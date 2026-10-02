@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import pytest
-from app.rag.local_parsers import parse_docx, parse_pdf
+from sandbox.W5.Fri.old_local_parsers import parse_docx, parse_pdf
 
 SAMPLES = Path(__file__).resolve().parents[2] / 'sandbox' / 'w5' / 'day01' / 'samples'
 
@@ -47,7 +47,7 @@ def test_parse_pdf_returns_no_blocks_for_scanned_file() -> None:
 #.....
 
 from app.core.exceptions import ValidationFailed
-from app.rag.local_parsers import parse_local
+from sandbox.W5.Fri.old_local_parsers import parse_local
 
 HWPX = SAMPLES / 'DOC-HR-014_국내출장_여비_규정_v2.0.hwpx'
 
