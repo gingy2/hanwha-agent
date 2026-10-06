@@ -4,7 +4,7 @@ from pathlib import Path                                          # 파일 경�
 
 from app.core.logging import get_logger                           # 로거 생성 함수
 from app.integrations.ports import ParsedBlock, ParsedDoc         # 파서 결과 형식 (블록 하나 / 문서 전체)
-from sandbox.W5.Fri.old_local_parsers import parse_local                     # docx/pdf/hwpx/xlsx/pptx 로컬 파서 입구
+from app.rag.local_parsers import parse_local                                  # docx/pdf/hwpx/xlsx/pptx 로컬 파서 입구
 
 log = get_logger(__name__)                                        # 이 모듈 전용 로거
 

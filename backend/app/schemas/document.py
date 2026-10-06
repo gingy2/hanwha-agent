@@ -31,4 +31,15 @@ class DocumentCreateOut(BaseModel):
     created: bool = Field(
         description="문서 자체가 이번에 새로 생겼으면 True, 버전만 더했으면 False"
     )
+    job_id: str = Field(examples=["38c9f31b"], description="색인 작업 번호. GET /documents/jobs/{job_id} 로 진행 상태 조회")
 
+# 업로드 작업의 진행 상태값 화면 전달용
+class JobOut(BaseModel):
+    job_id:str=Field(examples=["38c9f31b"])
+    doc_id:str=Field(examples=["DOC-FI-009"])
+    version:str=Field(examples=['v1.4'])
+    status:Literal["대기", "진행 중", "완료", "실패"]
+    progress:int=Field(default=0, ge=0, le=100)
+    steps:list[dict]
+    chunk_count:int=0
+    message:str=''

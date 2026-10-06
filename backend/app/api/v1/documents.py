@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Query, File, Form, UploadFile
+from unittest import result
+
+from fastapi import APIRouter, Query, File, Form, UploadFile, BackgroundTasks
 from typing import Annotated
 
 import shutil
@@ -6,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from app.core.exceptions import NotFound, ValidationFailed
-from app.schemas.document import DocumentOut, DocumentCreateOut
+from app.schemas.document import DocumentOut, DocumentCreateOut, JobOut
 from app.api.v1.deps import SettingsDep, LoggerDep
 from app.services import document_service
 # from app.core.config import Settings
@@ -98,13 +100,13 @@ def upload_document(
     version: Annotated[str, Form()],
     effective_from: Annotated[date, Form()],
     file: Annotated[UploadFile, File()],
+    background:BackgroundTasks,
     logger: LoggerDep,
 ) -> dict:
     safe_name = Path(file.filename or "").name
     ext = Path(safe_name).suffix.lower()
 
-    if ext not in ALLOWED_EXTS:
-        
+    if ext not in ALLOWED_EXTS: # 우리가 허용한 ext가 아니라면
         raise ValidationFailed(
             f"{ext or '확장자 없는'} 파일은 등록할 수 없습니다. "
             "DOCX 또는 PDF 로 변환해 다시 올려 주세요."
@@ -123,7 +125,7 @@ def upload_document(
     logger.info("문서 파일 저장: %s (%s)", dest, security_level)
 
     # DB에 파일 정보 저장하고 응답 데이터 화면에 반환
-    return document_service.create_document(
+    result=document_service.create_document(
         doc_id=doc_id,
         title=title,
         dept_id=dept_id,
@@ -133,7 +135,15 @@ def upload_document(
         file_path=dest.as_posix(),
         file_format=ext.lstrip("."),
     )
-    
+    # document_service.ingest_document(doc_id=doc_id, version=version, path=dest.as_posix())
+    job_id=document_service.start_ingest_job(doc_id=doc_id, version=version, path=dest.as_posix())
+    background.add_task(document_service.run_ingest_job, job_id)
+    return {**result, 'job_id':job_id}
+
+# 업로드 작업 하나의 진행 상태 정보 요청 처리해주는 매핑
+@router.get('/jobs/{job_id}', response_model=JobOut)
+def read_job(job_id:str)->dict:
+    return document_service.get_job(job_id)
 
 '''
 # 문서 목록 요청
@@ -179,7 +189,7 @@ def find_doc():
     raise NotFound('문서 못찾음')
 
 # -------------------------------------------------
-
+'''
 # 잘못된 예시
 @router.get('/list')
 def get_list(dept_id=None, security_level=None, status=None, q=None):
@@ -196,3 +206,4 @@ def get_list(dept_id=None, security_level=None, status=None, q=None):
 # backend/app/api> 라우터에서 바로 DB 접속 ㄴㄴ
 # 보안,재사용,테스트,이관 다 어려워짐. 불필요한 문제 다수 발생.
 # therefore-> Repository 사용.
+'''

@@ -6,7 +6,7 @@ import httpx2
 
 BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
-TIMEOUT = 10.0
+TIMEOUT = 10.0 # 10초 이상 응답이 없으면 타임아웃 처리
 
 # 백엔드 호출 실패시 예외 클래스
 class ApiError(RuntimeError):
@@ -19,6 +19,8 @@ def _request(
     *,
     params: dict | None = None,  # 쿼리스트링 ?aaa=10
     json: dict | None = None,    # 요청 본문으로 보낼 dict 타입 데이터
+    data: dict | None = None,    # 멀티파트 텍스트 필드
+    files: dict | None = None,   # 멀티파트 파일명 필드?
     emp_no: str | None = None,   # 사원번호. X-Emp-No 헤더값
 ) -> Any:
 
@@ -35,7 +37,7 @@ def _request(
     try:
         # 백엔드에 요청
         response = httpx2.request(
-            method, url, params=clean_params, json=json, headers=headers, timeout=TIMEOUT
+            method, url, params=clean_params, json=json, data=data, files=files, headers=headers, timeout=TIMEOUT
         )
     except httpx2.ConnectError as exc:
         raise ApiError(
@@ -100,3 +102,22 @@ def stats(*, emp_no: str | None = None) -> dict:
 def ask(question:str)->dict:
     # question: 사용자가 입력창에 입력한 질문
     return _request('POST','/api/v1/chat/messages', json={'question':question})
+
+# 파일 하나를 백엔드에 전달-> 업로드 처리 요청-> 작업 번호 반환
+def upload_document(*, doc_id:str, title:str, dept_id:str, security_level:str, 
+                    version:str, effective_from:str, filename:str, content:bytes, 
+                    emp_no:str|None=None)->dict:
+
+    return _request('POST','/api/v1/documents',
+                    data={
+                        'doc_id':doc_id, 'title':title, 'dept_id':dept_id, 
+                        'security_level':security_level, 'version':version, 
+                        'effective_from':effective_from,
+                    },
+                    files={'file':(filename, content)},
+                    emp_no=emp_no
+                    )
+
+# 업로드 작업의 진행 상태 하나 요청
+def get_job(job_id:str, *, emp_no:str|None=None)->dict:
+    return _request('GET', f'/api/v1/documents/jobs/{job_id}', emp_no=emp_no)
