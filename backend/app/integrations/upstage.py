@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from streamlit import status
+
 from app.core.config import get_settings
 from app.core.exceptions import ExternalServiceError
 from app.core.logging import get_logger
@@ -101,3 +103,47 @@ def _to_doc(p:Path, payload:dict)->ParsedDoc:
 
     log.info("상용 파싱 완료: %s, 블록 %d, 표 %d", p.name, len(blocks), tables)
     return ParsedDoc(blocks=blocks, page_count=pages, table_count=tables)
+
+# --- embedding ------------------------------------
+EMBED_TIMEOUT=60.0
+EMBED_BATCH=50
+
+# 상용 임베딩 어댑터
+class UpstageEmbedder:
+    name='upstage'
+
+    def __init__(self) -> None:
+        settings=get_settings()
+        self.model=settings.upstage_embed_model
+        self.dim:int=settings.embed_dim
+
+    # 문장 목록을 사용 API에 보내 벡터 목록으로 받기
+    def _embed(self, texts:list[str],kind:str)->list[list[float]]:
+        import httpx
+        if not self.model:
+            raise ExternalServiceError(
+                'UPSTAGE_EMBED_MODEL is empty.',
+                detail='.env에 사용할 모델 이름을 입력해야 상용 임베딩 호출 가능.'
+            )
+        settings=get_settings()
+        url=f'{settings.upstage_base_url.rstrip('/')}/embeddings'
+        try:
+            with httpx.Client(timeout=EMBED_TIMEOUT) as client:
+                resp=client.post(url, headers=_headers(),json={'model':self.model, 'input':texts})
+                resp.raise_for_status()
+        except httpx.HTTPError as e:
+            status=getattr(getattr(e,'response',None),'status_code',None)
+            raise ExternalServiceError(f'Upstage embedding failed({kind}):{e}',
+                                       detail=_explain(status)) from e
+        rows = sorted(resp.json().get("data", []), key=lambda r: r.get("index", 0))
+        log.info("상용 임베딩 완료 : %s - %s - %d건", self.model, kind, len(rows))
+        return [[float(x) for x in row["embedding"]] for row in rows]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]: 
+        out : list[list[float]] = []
+        for i in range(0, len(texts), EMBED_BATCH):
+            out.extend(self._embed(texts[i:i + EMBED_BATCH], "passage"))
+        return out
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([text], "query")[0] 

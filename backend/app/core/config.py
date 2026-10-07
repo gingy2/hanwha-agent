@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, Secret, SecretStr
 from functools import lru_cache
 
+from app.models.base import EMBED_DIM
+
 class Settings(BaseSettings):
     model_config=SettingsConfigDict(
         env_file='.env',
@@ -31,8 +33,13 @@ class Settings(BaseSettings):
     upstage_base_url: str = "https://api.upstage.ai/v1"
     upstage_parse_model: str = "document-parse"
     upstage_parse_ocr: str = "auto"  
+    # --- embedding ---
+    embed_provider:str=Field(default='local',pattern=r'^(local|upstage)')
+    embed_model_dir:str='models/bge-m3'
+    embed_dim:int=EMBED_DIM
+    upstage_embed_model:str|None=None
 
-    # live 모드인지 확인 -> settings.is_live => True/Fase 
+    # live 모드인지 확인 -> settings.is_live => True/False 
     @property
     def is_live(self) -> bool:
         return self.app_mode == "live"

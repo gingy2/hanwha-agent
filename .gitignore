@@ -1,6 +1,7 @@
 # sandbox/
 .venv/
 .venv-1/
+models/
 __pycache__/
 *.py[cod]
 .pytest_cache/

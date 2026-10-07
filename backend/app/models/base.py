@@ -2,6 +2,9 @@ from __future__ import annotations
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from datetime import datetime
 
+# 임베딩 벡터 차원 수 (bge-m3 = 1024). 바꾸면 chunks.embedding 컬럼도 마이그레이션 필요
+EMBED_DIM = 1024
+
 # 모든 모델의 부모
 class Base(DeclarativeBase):
     pass
