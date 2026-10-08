@@ -121,3 +121,11 @@ def upload_document(*, doc_id:str, title:str, dept_id:str, security_level:str,
 # 업로드 작업의 진행 상태 하나 요청
 def get_job(job_id:str, *, emp_no:str|None=None)->dict:
     return _request('GET', f'/api/v1/documents/jobs/{job_id}', emp_no=emp_no)
+
+# 문서 한 건의 버전들을 모두 요청
+def list_versions(doc_id: str, *, emp_no: str | None = None) -> list[dict]:
+    return _request("GET", f"/api/v1/documents/{doc_id}/versions", emp_no=emp_no)
+
+# 재임베딩 요청 (파일을 다시 올리지는 않는다.)
+def reindex(doc_id: str, version: str, *, emp_no: str | None = None) -> dict:
+    return _request("POST", f"/api/v1/documents/{doc_id}/versions/{version}/reindex", emp_no=emp_no)

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     embed_model_dir:str='models/bge-m3'
     embed_dim:int=EMBED_DIM
     upstage_embed_model:str|None=None
+    # --- 검색 ---
+    retrieval_threshold:float=Field(default=0.55, ge=0.0, le=1.0)
+    retrieval_top_k:int=Field(default=12,ge=1,le=100)
+
 
     # live 모드인지 확인 -> settings.is_live => True/False 
     @property

@@ -1,4 +1,5 @@
 # 문서 정보 응답해줄 때 사용할 스키마
+from bdb import effective
 from collections.abc import Iterator
 
 from pydantic import BaseModel, Field
@@ -19,6 +20,20 @@ class DocumentOut(BaseModel):
     expires_at:date|None=None
     index_status:Literal["대기", "재임베딩", "완료", "보관"] = "대기"
     index_progress:int=Field(default=0, ge=0, le=100)
+
+# 버전 목록 화면에 전달할 수 있는 스키마 추가
+class VersionOut(BaseModel):
+    version:str=Field(examples=['v2.0'])
+    status:Literal['현행','만료']
+    effective_from:date
+    expires_at:date|None=None
+    chunk_count:int=0
+    embed_model:str|None=None
+    index_status:Literal['대기','재임베딩','완료','보관']='대기'
+    indexed_at:date|None=None
+    searchable:bool=False
+    period:str=Field(examples=['2026-09-01~'])
+
 
 # (문서 생성시 넘어오는 데이터 담아줄 객체)
 # 업로드 응답: 무엇이 어디에 저장됐는지만 알려주는 객체

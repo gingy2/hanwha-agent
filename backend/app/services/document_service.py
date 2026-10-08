@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date
 from uuid import uuid4
 from app.core.exceptions import NotFound, ValidationFailed
+from app.db import session
 from app.db.session import session_scope                           # session DB 접속 통로
 from app.models.document import Document, DocumentVersion          # 데이터 넣는 가방
 from app.models.org import Department                              # 부서 코드 확인용
@@ -125,6 +126,28 @@ def create_document(
             "created": created,
         }
 
+# 문서 한 건의 버전을 전부 최신 버전이 앞에 오도록 반환
+def list_versions(*,doc_id:str)->list[dict]:
+    with session_scope() as s:
+        document=document_repo.get_document(s,doc_id)
+        if document is None:
+            raise NotFound(f'문서를 찾을 수 없음:{doc_id}')
+        return[
+            {
+                'version':v.version,
+                'status':v.status,
+                'effective_from':v.effective_from,
+                'expires_at':v.expires_at,
+                'chunk_count':v.chunk_count,
+                'embed_model':v.embed_model,
+                'index_status':v.index_status,
+                'index_at':v.indexed_at,
+                'searchable':v.is_searchable,
+                'period':v.period
+            }
+            for v in sotred(document.versions, key=lambda v:v.version, reverse=True)
+        ]
+
 # 업로드 요청한 파일 하나를 파싱-> 청킹-> 저장까지 이어주는 함수
 def ingest_document(*, doc_id:str, version:str, path:str)->dict:
     from app.rag import chunker, embedder, parser, store
@@ -197,6 +220,18 @@ def run_ingest_job(job_id:str)->None:
         for step in job['steps']:                                    # 끝나지 못한 단계들은
             if step['state']!='ok':
                 step['state']='no'                                   # 실패 표시 (화면에서 ✕)
+
+# 이미 등록된 문서 버전 한 개를 다시 적재하는 작업
+def start_reindex_job(*,doc_id:str,version:str)->str:
+    with session_scope() as s:
+        document=document_repo.get_document(s,doc_id)
+        dv=next((v for v in document.versions if v.version==version),None) if document else None
+        if dv is None:
+            raise NotFound(f'해당 문서 버전을 찾을 수 없음: {doc_id}{version}')
+        path=dv.file_path or ''
+        dv.index_status='재임베딩'
+        dv.index_progress=0
+    return start_ingest_job(doc_id=doc_id,version=version,path=path)
 
 # 작업 하나의 진행 상태를 반환해주는 함수
 def get_job(job_id:str)->dict:

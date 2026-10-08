@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from app.core.exceptions import NotFound, ValidationFailed
-from app.schemas.document import DocumentOut, DocumentCreateOut, JobOut
+from app.schemas.document import DocumentOut, DocumentCreateOut, JobOut, VersionOut
 from app.api.v1.deps import SettingsDep, LoggerDep
 from app.services import document_service
 # from app.core.config import Settings
@@ -182,6 +182,17 @@ def list_documents(
 @router.get('/{doc_id}',response_model=DocumentOut)
 def get_document(doc_id:str)->dict:
     return document_service.get_document(doc_id=doc_id)
+
+# 문서 1개에 해당하는 버전들 요청
+@router.get("/{doc_id}/versions", response_model=list[VersionOut])
+def list_versions(doc_id: str) -> list[dict]:
+    return document_service.list_versions(doc_id=doc_id)
+
+@router.post('/{doc_id}/versions/{version}/reindex',response_model=JobOut,status_code=202)
+def reindex_version(doc_id: str, version: str, background: BackgroundTasks) -> dict:
+    job_id = document_service.start_reindex_job(doc_id=doc_id, version=version)
+    background.add_task(document_service.run_ingest_job, job_id)
+    return document_service.get_job(job_id) 
 
 # 예외 테스트
 @router.get('/find')
