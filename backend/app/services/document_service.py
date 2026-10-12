@@ -5,7 +5,7 @@ DB 정보가 필요하면 repository를 호출.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import uuid4
 from app.core.exceptions import NotFound, ValidationFailed
 from app.db import session
@@ -106,6 +106,13 @@ def create_document(
                 "판 번호를 올려 다시 올려 주세요."
             )
 
+        # 새 버전 저장 전에, 기존 버전들의 현행을 만료로 내리기 (현행은 하나만)
+        for past in document.versions:
+            if past.status == "현행":
+                past.status = "만료"
+                past.expires_at = effective_from - timedelta(days=1)
+                past.index_status = "보관"                              # 검색 대상에서 제외
+
         document_repo.add_version(
             s,
             document,
@@ -141,11 +148,11 @@ def list_versions(*,doc_id:str)->list[dict]:
                 'chunk_count':v.chunk_count,
                 'embed_model':v.embed_model,
                 'index_status':v.index_status,
-                'index_at':v.indexed_at,
+                'indexed_at':v.indexed_at,
                 'searchable':v.is_searchable,
                 'period':v.period
             }
-            for v in sotred(document.versions, key=lambda v:v.version, reverse=True)
+            for v in sorted(document.versions, key=lambda v:v.version, reverse=True)
         ]
 
 # 업로드 요청한 파일 하나를 파싱-> 청킹-> 저장까지 이어주는 함수

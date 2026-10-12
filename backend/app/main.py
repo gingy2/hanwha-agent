@@ -3,8 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from torch import ops
 
-from app.api.v1 import auth, documents, chat
+from app.api.v1 import auth, documents, chat, ops
 from app.core.exceptions import AgentError
 from app.core.logging import setup_logging
 from app.core.tracing import configure_langfuse, flush_langfuse
@@ -40,6 +41,10 @@ app.include_router(
 )
 app.include_router(
     chat.router,
+    prefix='/api/v1'
+)
+app.include_router(
+    ops.router,
     prefix='/api/v1'
 )
 

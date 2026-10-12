@@ -1,7 +1,4 @@
 # 문서 정보 응답해줄 때 사용할 스키마
-from bdb import effective
-from collections.abc import Iterator
-
 from pydantic import BaseModel, Field
 from typing import Literal
 from datetime import date

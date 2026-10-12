@@ -1,5 +1,3 @@
-from unittest import result
-
 from fastapi import APIRouter, Query, File, Form, UploadFile, BackgroundTasks
 from typing import Annotated
 

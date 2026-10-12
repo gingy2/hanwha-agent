@@ -15,7 +15,8 @@ def render() -> None:
     doc_id = st.session_state.get("selected_doc", DEFAULT_DOC)
 
     if st.button("← 문서 관리", key="back_docs"):
-        router.go("documents")     
+        router.go("documents")
+        st.rerun()
 
     try:
         doc = api_client.get_document(doc_id, emp_no=session.emp_no())
@@ -86,4 +87,38 @@ def _policy_card() -> None:
     st.caption("값은 backend/app/rag/policy.py 의 SearchPolicy 가 정합니다.")
 
 # 작업 버튼 그리기
-def _actions()
+def _actions(doc_id: str, version: str) -> None:
+    st.subheader("작업")
+    if st.button("새 버전 업로드", type="primary", use_container_width=True):
+        router.go("document_upload")
+        st.rerun()
+    if st.button("재임베딩", use_container_width=True):
+        try:
+            job = api_client.reindex(doc_id, version, emp_no=session.emp_no())
+        except api_client.ApiError as e:
+            st.error(str(e))
+            return
+        st.session_state["reindex_job"] = job["job_id"]
+        st.rerun()
+
+    _watch_job()
+
+# 접수한 재임베딩 작업의 진행 상태를 그리는 함수
+def _watch_job() -> None:
+    job_id = st.session_state.get("reindex_job")
+    if not job_id:
+        return
+    try:
+        job = api_client.get_job(job_id, emp_no=session.emp_no())
+    except api_client.ApiError as e:
+        st.warning(f"작업 상태를 못 읽었습니다: {e}")
+        return
+
+    st.caption(f"재임베딩 {job['status']} · 청크 {job['chunk_count']}")
+    progress(job["progress"])
+    if job["status"] in ("완료", "실패"):
+        st.session_state.pop("reindex_job", None)
+        if job["message"]:
+            st.caption(job["message"])
+    elif st.button("다시 보기", key="poll_index"):
+        st.rerun()
