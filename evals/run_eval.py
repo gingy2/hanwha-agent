@@ -1,9 +1,8 @@
-# 
+# 골든셋 30문항으로 검색 정확도를 측정하는 채점기
 
 from __future__ import annotations
 
 import argparse
-from inspect import getmembers
 import json
 import sys
 from datetime import datetime
@@ -19,6 +18,7 @@ from app.db.session import session_scope
 from app.integrations.factory import get_embedder
 from app.models import EvalRun
 from app.rag import policy, store
+from app.rag.retriever import LiveRetriever
 
 settings=get_settings()
 GOLDEN=Path(__file__).parent/'golden_set.yaml'
@@ -26,13 +26,23 @@ REPORTS=Path(__file__).parent/'reports'
 DEFAULT_TOP_N=3
 
 # 설정 목록
-CONFIGS=[{'name':'기본 검색'}]
+CONFIGS=[
+    {'name':'기본 검색'},
+    {'name':'+ Multi-Query', 'multi_query':True},
+    {'name':'+ 하이브리드', 'multi_query':True, 'hybrid':True},
+    ]
 
 # 관리자 시각으로 테스트
 EVAL_USER={'id':'2011-0003', 'name':'한서영', 'clearance':'대외비', 'dept_id':'HR'}
 
 # 질문 하나를 후보로 뽑고 정책으로 거른 뒤 상위 n건만 남기는 함수
-def retrieve(session, question:str, top_n:int)->list[dict]:
+def retrieve(session, question:str, top_n:int, cfg:dict | None=None)->list[dict]:
+    cfg=cfg or {}
+    if cfg.get('multi_query'):
+        result=LiveRetriever().search(question=question, user=EVAL_USER, session=session,
+                                      hybrid=bool(cfg.get('hybrid')))
+        return result.sources[:top_n]
+
     embedder=get_embedder()
     rows=store.vector_search(session,embedder.embed_query(question),limit=settings.retrieval_top_k)
     kept, _ = policy.filter_candidates(rows, user=EVAL_USER, question=question)
@@ -66,7 +76,7 @@ def run_config(cfg:dict, items:list[dict], top_n:int)->dict:
     results=[]
     with session_scope() as session:
         for item in items:
-            hits = retrieve(session, item['question'], top_n)
+            hits = retrieve(session, item['question'], top_n, cfg)
             ok, why = judge(item, hits, settings.retrieval_threshold)
             results.append({'id':item['id'], 'type':item.get('type',''),
                             'question':item['question'], 'ok':ok, 'why':why})
@@ -114,10 +124,10 @@ def main()->int:
     for cfg in configs:
         run=run_config(cfg, items, args.top_n)
         runs.append(run)
-        print(f'{run['config']:16}{run['accuracy']:5.1f}% ({run['correct']}/{run['total']})')
+        print(f"{run['config']:16} {run['accuracy']:5.1f}% ({run['correct']}/{run['total']})")
         for type_name, bucket in sorted(run['by_type'].items()):
             rate=bucket['ok']/bucket['n']*100
-            print(f'{type_name:22} {rate:5.1f}% ({bucket['ok']}/{bucket['n']})')
+            print(f"   {type_name:22} {rate:5.1f}% ({bucket['ok']}/{bucket['n']})")
         print()
 
     report={'measured_at':datetime.now().isoformat(timespec='seconds'),

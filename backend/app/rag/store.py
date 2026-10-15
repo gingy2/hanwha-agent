@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.logging import get_logger
@@ -59,3 +60,57 @@ def vector_search(session:Session, query_vec:list[float],*,limit:int=12)->list[d
         _row(chunk, version, doc, 1.0 - float(dist))
         for chunk, version, doc, dist in session.execute(stmt)
     ]
+
+# 지정한 청크들이 질문 벡터와 얼마나 가까운지(코사인 유사도)를 chunk_id별로 돌려주는 함수
+def vector_scores(session:Session, query_vec:list[float], chunk_ids:list[int])->dict[int,float]:
+    if not query_vec or not chunk_ids:
+        return {}
+    distance=Chunk.embedding.cosine_distance(query_vec)
+    stmt=select(Chunk.id, distance).where(Chunk.id.in_(chunk_ids), Chunk.embedding.is_not(None))
+    return {cid: round(1.0-float(dist),4) for cid, dist in session.execute(stmt)}
+
+# 키워드 검색
+def keyword_search(session:Session, query:str, *, limit:int=12)->list[dict]:
+    stmt=(select(Chunk, DocumentVersion, Document)
+          .join(DocumentVersion, Chunk.version_id==DocumentVersion.id)
+          .join(Document, DocumentVersion.doc_id==Document.id))
+    rows=list(session.execute(stmt))
+    if not rows:
+        log.warning('키워드 검색: 청크가 한 건도 없습니다 - 적재를 먼저 하세요')
+        return []
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        log.warning('키워드 검색이 꺼져있습니다. rank_bm25 미설치')
+        return []
+
+    scores=BM25Okapi([_tokenize(c.text) for c, _, _ in rows]).get_scores(_tokenize(query))
+    top=max(scores) if len(scores) else 0.0
+    out=[_row(chunk, version, doc, (s/top) if top else 0.0)
+        for (chunk, version, doc), s in zip(rows, scores, strict=False)
+    ]
+    out.sort(key=lambda r: r['score'], reverse=True)
+    return out[:limit]
+
+# 본문과 질의를 같은 규칙으로 낱말로 분할하는 함수
+def _tokenize(text:str)->list[str]:
+    return [t for t in re.findall(r"[가-힣A-Za-z0-9]+", text or "") if len(t)>1]
+
+# RRF: 점수의 척도가 다른 두 결과를 *순위*로 합친다
+def fuse(vector_rows:list[dict],keyword_rows:list[dict],*,k:int=60)->list[dict]:
+    ranks:dict[int,dict]={}
+    for source, rows in (('vector',vector_rows),('keyword',keyword_rows)):
+        for rank, row in enumerate(rows, 1):
+            if row['chunk_id'] not in ranks:
+                first=row['score'] if source=='vector' else 0.0
+                ranks[row['chunk_id']]={**row,'score':first,'keyword_score':0.0, '_rrf':0.0}
+            entry=ranks[row['chunk_id']]
+            entry['_rrf']+=1.0/(k+rank)
+            if source=='keyword':
+                entry['keyword_score']=row['score']
+
+    merged=list(ranks.values())
+    merged.sort(key=lambda r: r['_rrf'], reverse=True)
+    for r in merged:
+        r.pop('_rrf', None)
+    return merged

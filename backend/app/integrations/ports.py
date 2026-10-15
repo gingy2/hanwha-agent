@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
+from torch import threshold
+
 # LLM 호출 한번의 결과
 @dataclass
 class LLMResult:
@@ -39,6 +41,16 @@ class ParsedDoc:
 @runtime_checkable
 class ParserPort(Protocol):
     def parse(self, path:str)-> ParsedDoc:...
+
+# 검색 파이프라인 한 번의 결과를 담아줄 객체
+@dataclass
+class RetrievalResult:
+    sources:list[dict]=field(default_factory=list) # 근거 후보 목록
+    steps:list[dict]=field(default_factory=list)   # 화면의 검색 과정 보여줄 때 사용
+    best_score:float=0.0                           # 후보 중 가장 높은 유사도
+    passed:bool=False                              # 최고 점수가 임계값을 넘었는가?
+    version_note:str|None=None                     # 만료된 문서를 사용했을 때 사용자에게 알려줌
+    threshold:float=0.55                           # 임계값
 
 # --- embedding ------------
 # 임베딩 어댑터가 지켜야 할 규칙
