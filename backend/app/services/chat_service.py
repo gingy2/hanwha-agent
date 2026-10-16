@@ -70,6 +70,15 @@ def _record_usage(run_id:str, result)->None:
     except Exception as e:
         log.warning('사용 기록 실패(무시하고 계속):%s',e)
 
+# 열어둔 실행 기록 행들을 결과로 채워서 닫기
+def _close_run(run_id:str, out:AskOut, started:float)->None:
+    with session_scope() as session:
+        run = session.get(Run, run_id)
+        run.answer = out.asnwer
+        run.status = '완료'
+        run.latency_ms = int((time.perf_counter() - started) * 1000)
+        run.sources = [s.model_dump() for s in out.sources]
+
 # 본체: 질문 하나에 대답하기
 @observe(name='chat-response', capture_input=False, capture_output=False)
 def ask(*, question:str, run_id:str|None=None, user_id:int=1)->AskOut:
@@ -98,6 +107,26 @@ def ask(*, question:str, run_id:str|None=None, user_id:int=1)->AskOut:
                 mode=get_settings().app_mode,
             )
         )
+
+    # No_CONTEXTS 갈아끼우기
+    from app.rag.retriever import LiveRetriever
+    with session_scope() as session:
+        found=LiveRetriever().search(
+            question=q, user={**DEFAULT_USER, 'clearance':'일반'}, session=session
+        )
+    log.info('검색:근거 %d건 - 최고 %.2f - 기준 %.2f', len(found.sources), found.best_score, found.threshold)
+
+    if not found.passed:
+        log.info('임계값 미달(%.2f < %.2f) - 근거 부족으로 응답합니다. (run_id=%s)', found.best_score, found.threshold, run_id)
+        out=_fallback(run_id, attempts=1)
+        out.steps=found.steps # 못 넘은 단계까지 화면에 그대로 보여주기
+        _close_run(run_id, out, started)
+        return out
+
+    # 체인에 연결
+    chain = build_result_chain(llm, contexts=found.sources, user=DEFAULT_USER).with_retry(
+        stop_after_attempt=2
+    )
 
     # 트레이스 단위로 묶어줄 정보: 세션(run_id) · 사용자 · 태그
     langfuse_context.update_current_trace(
@@ -139,28 +168,32 @@ def ask(*, question:str, run_id:str|None=None, user_id:int=1)->AskOut:
 
         # 통과 시 out 변수에 담기
         out=AskOut(**data, run_id=run_id, attempts=attempt, fallback_used=False)
-        langfuse_context.update_current_trace(
-            output=out.answer,
-            metadata={'attempts': attempt, 'fallback_used': False, 'enough_evidence': out.enough_evidence},
-        )
+        # langfuse_context.update_current_trace(
+        #     output=out.answer,
+        #     metadata={'attempts': attempt, 'fallback_used': False, 'enough_evidence': out.enough_evidence},
+        # )
         break
 
     if out is None:
         # 3번 다 시도했다. 로그 남기고 fallback 실행.
         log.warning('스키마 검증에 %d회 실패하여 폴백함.(run_id=%s)',MAX_ATTEMPTS,run_id)
         out=_fallback(run_id, MAX_ATTEMPTS)
-        langfuse_context.score_current_trace(name='schema_ok', value=0.0)
-        langfuse_context.update_current_trace(
-            output=out.answer,
-            metadata={'attempts': MAX_ATTEMPTS, 'fallback_used': True, 'last_hint': hint},
-        )
+        # langfuse_context.score_current_trace(name='schema_ok', value=0.0)
+        # langfuse_context.update_current_trace(
+        #     output=out.answer,
+        #     metadata={'attempts': MAX_ATTEMPTS, 'fallback_used': True, 'last_hint': hint},
+        # )
+        
+    # with session_scope() as session:
+    #     run=session.get(Run, run_id)  # run_id에 해당하는 레코드 한개 조회
+    #     run.answer=out.answer
+    #     run.status='완료'
+    #     run.latency_ms=int((time.perf_counter()-started)*1000)
+    #     run.sources=[s.model_dump() for s in out.sources]
 
-    with session_scope() as session:
-        run=session.get(Run, run_id)  # run_id에 해당하는 레코드 한개 조회
-        run.answer=out.answer
-        run.status='완료'
-        run.latency_ms=int((time.perf_counter()-started)*1000)
-        run.sources=[s.model_dump() for s in out.sources]
+    # return out
+    out.steps = found.steps
+    _close_run(run_id, out, started)
 
     return out
 

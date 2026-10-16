@@ -165,7 +165,8 @@ items:
     type: 타 부서 문서 참조
     expect_doc: DOC-SE-102
     expect_version: v1.0
-    requires_clearance: 3급
+    requires_clearance: 대외비
+    expect_keywords: ['접근권한', '보안팀장이 승인']
 
   # ── 규정에 없는 사항 (6) — 근거부족 응답이 정답 ──
   - id: G25

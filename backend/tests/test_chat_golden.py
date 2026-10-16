@@ -8,11 +8,26 @@ import pytest
 import app.integrations.factory as factory
 from app.core.exceptions import GuardTripped
 from app.core.guards import check_model
-from app.integrations.ports import LLMResult
+from app.integrations.ports import LLMResult, RetrievalResult
 from app.services import chat_service
 
 GOLDEN_PATH = Path(__file__).resolve().parent / "golden" / "chat_golden.json"
 GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
+
+@pytest.fixture(autouse=True)
+def stub_retriever(monkeypatch):
+    import app.rag.retriever as retriever_module
+
+    class _StubRetriever:
+        name='stub'
+        def search(self, *, question, user, session, **_):
+                   return RetrievalResult(
+                       sources=[{'doc_id':'DOC-HR-014', 'title':'국내출장 여비 규정,'
+                                 'version': 'v2.0', 'locator':'제12조(숙박비) - p.6',
+                                 'score':0.90', 'quote':'(대역)'}],
+                       steps=[{'name':'대역 검색', 'state':'ok'}],
+                       best_score=0.90, passed=True, threshold=0.55
+                   )
 
 # 가짜 LLM
 class StubLLM:
