@@ -36,6 +36,8 @@ class DocumentVersion(Base, TimestampMixin):
     document:Mapped[Document]=relationship(back_populates='versions')
 '''
 
+VERSION_CURRENT='현행'
+
 # 9/11 금
 # 문서 모델
 class Document(Base, TimestampMixin):

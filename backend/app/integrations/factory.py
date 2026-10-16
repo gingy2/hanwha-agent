@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from app.core.config import get_settings
 from app.core.exceptions import ModeNotAvailable
-from app.integrations.ports import EmbedderPort, LLMPort
+from app.integrations.ports import EmbedderPort, LLMPort, RerankerPort
 
 # reusable Claude adapter
 @lru_cache
@@ -42,3 +42,9 @@ def get_embedder()->EmbedderPort:
     if provider=='upstage':
         return _upstage_embedder()
     return _local_embedder()
+
+# 크로스 인코더 어댑터 하나 만들어 반환하는 함수 (재사용)
+@lru_cache
+def get_cross_encoder()-> RerankerPort:
+    from app.integrations.local_rerank import LocalCrossEncoder
+    return LocalCrossEncoder()

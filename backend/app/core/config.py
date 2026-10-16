@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     retrieval_top_k:int=Field(default=12,ge=1,le=100) #벡터 검색이 받아올 후보 갯수
     multi_query_n:int=Field(default=3, ge=1, le=10) # 질문을 몇 갈래까지 늘리는가
     rerank_top_n:int=Field(default=3, ge=1, le=20)  # 다시 줄세운 뒤 몇 건을 남길 것인가
+    # --- 리랭커 ---
+    # simple: 간이리랭커, cross_encoder: 모델이 질문과 조각을 한번에 읽어 점수 매김
+    reranker:str=Field(default='simple', pattern=r'^(simple|cross_encoder)$')
+    rerank_model_dir:str='models/bge-reranker-v2-m3'
+    rerank_candidates:int=Field(default=12, ge=1, le=100)
+    # 질문 + 조각을 합쳐 이 토큰 수에서 자른다. (문서에 따라 수정 요청)
+    rerank_max_length:int=Field(default=512, ge=64, le=8192)
+    # 크로스 인코더 점수가 (0~1)가 이 값에 못 미치면 근거 부족.
+    rerank_threshold:float=Field(default=0.2, ge=0.0, le=1.0)
+    
 
     # live 모드인지 확인 -> settings.is_live => True/False 
     @property
